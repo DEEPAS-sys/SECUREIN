@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: video-analytics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: video-analytics
+data:
+  DATABASE_URL: "postgresql+asyncpg://postgres:postgres123@postgres:5432/video_analytics"
+  REDIS_URL: "redis://redis:6379/0"
+  RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: video-analytics
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: video-analytics-backend:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: backend-config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: video-analytics
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  namespace: video-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+    spec:
+      containers:
+      - name: inference
+        image: video-analytics-inference:latest
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+        envFrom:
+        - configMapRef:
+            name: backend-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: video-analytics
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: video-analytics-frontend:latest
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: video-analytics
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: LoadBalancer
