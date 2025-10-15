@@ -1,0 +1,264 @@
+# OpenAPI Specification
+
+openapi: 3.0.3
+info:
+  title: Video Analytics Platform API
+  description: Production-ready AI Video Analytics Platform API
+  version: 1.0.0
+  contact:
+    email: support@securein.ai
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.securein.ai
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Cameras
+    description: Camera management
+  - name: Rules
+    description: Detection rules management
+  - name: Alerts
+    description: Alerts and events
+  - name: Streams
+    description: Video streaming
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, operator, viewer]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Camera:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        rtsp_url:
+          type: string
+        site:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, error, connecting]
+        enabled:
+          type: boolean
+        last_seen:
+          type: string
+          format: date-time
+
+    Rule:
+      type: object
+      properties:
+        id:
+          type: integer
+        camera_id:
+          type: integer
+        name:
+          type: string
+        rule_type:
+          type: string
+          enum: [zone_entry, zone_exit, dwell_time, object_count, line_crossing]
+        enabled:
+          type: boolean
+        config:
+          type: object
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        camera_id:
+          type: integer
+        rule_id:
+          type: integer
+        event_type:
+          type: string
+          enum: [detection, alert, system]
+        timestamp:
+          type: string
+          format: date-time
+        snapshot_url:
+          type: string
+        clip_url:
+          type: string
+        acknowledged:
+          type: boolean
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+
+  /api/cameras:
+    get:
+      tags: [Cameras]
+      summary: List cameras
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of cameras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Camera'
+
+    post:
+      tags: [Cameras]
+      summary: Create camera
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                rtsp_url:
+                  type: string
+                site:
+                  type: string
+      responses:
+        '201':
+          description: Camera created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+
+  /api/rules:
+    get:
+      tags: [Rules]
+      summary: List rules
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+
+  /api/alerts:
+    get:
+      tags: [Alerts]
+      summary: List alerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: camera_id
+          in: query
+          schema:
+            type: integer
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
